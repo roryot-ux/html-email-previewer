@@ -103,9 +103,29 @@ count when a field appears more than once:
 
 | Action | What it does |
 | --- | --- |
-| Click a name | Highlights that field and scrolls the preview to it. Click again to jump to the next occurrence. Clicking a field in the preview selects it here too. |
+| Click a name | Selects that field and scrolls both the preview and the generated HTML to it. Click again to move both to the next occurrence; the count changes to e.g. `2 of 3`. |
 | **Rename** | Renames every occurrence. Renaming to a name that already exists merges the two. |
 | **Remove** | Deletes every occurrence (after a confirmation), leaving those places empty. |
+
+### Finding fields in large documents
+
+The Fields panel, preview and generated HTML share one selection, so you can
+start from any of them:
+
+- **Fields panel** — click a name, as above.
+- **Preview** — click a field to select it in the panel and scroll the HTML to
+  the matching `{{FieldName}}`.
+- **Generated HTML** — every `{{FieldName}}` is highlighted and clickable.
+  Clicking one selects it in the panel and scrolls the preview to it.
+
+Colours: yellow marks every field. Light blue marks the other occurrences of
+the selected field, and solid blue marks the selected occurrence itself.
+Occurrences are numbered in document order, so occurrence 2 in the preview is
+occurrence 2 in the HTML. Clicking anywhere else in the preview clears the
+selection.
+
+The generated HTML pane is read-only text. Select text in it with the mouse, or
+use **Copy HTML** to copy all of it.
 
 `{{FieldName}}` text already typed into the Word document is detected as a
 field when the document is converted.

@@ -5,6 +5,32 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.3.0 - 2026-09-29
+
+### Added
+
+- **Linked field navigation in Document Builder.** The Fields panel, document
+  preview and generated HTML share one selected field occurrence.
+  - Clicking a field name scrolls both the preview and the generated HTML to
+    it. Repeated clicks cycle through occurrences in step in both panes, and
+    the panel shows the position, e.g. `2 of 3`.
+  - Clicking a field in the preview selects it in the panel and scrolls the
+    HTML to the matching `{{FieldName}}`.
+  - `{{FieldName}}` text in the generated HTML is highlighted and clickable.
+    Clicking one selects it in the panel and scrolls the preview to it.
+- Distinct highlight for the selection: fields stay yellow, other occurrences
+  of the selected field are light blue, and the selected occurrence is solid
+  blue.
+
+### Changed
+
+- The generated HTML pane is now a read-only `<pre>` rather than a
+  `<textarea>`, so fields can be highlighted inside it. It still scrolls
+  and supports mouse selection; `Ctrl+A` now selects the whole page rather than
+  just the HTML, so use **Copy HTML** to copy all of it.
+- After an insert, rename or remove, the selection follows the same occurrence.
+  Previously it was simply cleared or renamed.
+
 ## 1.2.0 - 2026-09-29
 
 ### Added

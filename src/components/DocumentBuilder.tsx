@@ -1,10 +1,13 @@
-import { useCallback, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react'
 import { convertDocxToHtml } from '../lib/docxConvert'
 import {
   clearTarget,
+  currentOccurrence,
   decorateDocument,
   fieldAt,
   type FieldInfo,
+  type FieldOccurrence,
+  findHtmlFields,
   highlightField,
   insertField,
   listFields,
@@ -50,19 +53,43 @@ export function DocumentBuilder({
   const [converting, setConverting] = useState(false)
   const [fields, setFields] = useState<FieldInfo[]>([])
   const [targetLabel, setTargetLabel] = useState<string | null>(null)
-  const [activeField, setActiveField] = useState<string | null>(null)
+  // The selected field occurrence, shared by the Fields panel, preview and HTML.
+  const [selection, setSelection] = useState<FieldOccurrence | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const frameRef = useRef<HTMLIFrameElement | null>(null)
-  // Which occurrence to scroll to next when a field is clicked repeatedly.
-  const occurrenceRef = useRef(0)
+  const htmlRef = useRef<HTMLPreElement | null>(null)
 
   const getDoc = () => frameRef.current?.contentDocument ?? null
 
   const sync = useCallback((doc: Document) => {
+    // Edits can shift or remove the selected occurrence; the preview's marker
+    // on it is the source of truth for where it is now.
+    const current = currentOccurrence(doc)
+    highlightField(doc, current)
+    setSelection(current)
     setHtml(serializeDocument(doc))
     setFields(listFields(doc))
   }, [])
+
+  /** Selects one occurrence everywhere and scrolls the chosen panes to it. */
+  const select = useCallback(
+    (next: FieldOccurrence, scroll: { preview: boolean; html: boolean }) => {
+      const doc = getDoc()
+      if (!doc) return
+      const span = highlightField(doc, next)
+      setSelection(next)
+      if (scroll.preview) span?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      if (scroll.html) {
+        htmlRef.current
+          ?.querySelector(
+            `[data-field="${CSS.escape(next.name)}"][data-occurrence="${next.index}"]`,
+          )
+          ?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+      }
+    },
+    [],
+  )
 
   const handleFileChosen = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +113,7 @@ export function DocumentBuilder({
         setDocName(file.name)
         setFields([])
         setTargetLabel(null)
-        setActiveField(null)
+        setSelection(null)
         announce(`Converted ${file.name}`)
       } catch (error) {
         announce(`Could not convert file: ${(error as Error).message}`)
@@ -105,20 +132,18 @@ export function DocumentBuilder({
     // Clicks choose positions; they should not follow links.
     if (clicked.closest('a')) event.preventDefault()
 
-    const field = fieldAt(clicked)
+    const field = fieldAt(doc, clicked)
     if (field) {
       clearTarget(doc)
       setTargetLabel(null)
-      highlightField(doc, field)
-      setActiveField(field)
-      occurrenceRef.current = 0
+      select(field, { preview: false, html: true })
       return
     }
 
     highlightField(doc, null)
-    setActiveField(null)
+    setSelection(null)
     setTargetLabel(selectTarget(doc, clicked, event.clientX, event.clientY))
-  }, [])
+  }, [select])
 
   const handleFrameLoad = useCallback(() => {
     const doc = getDoc()
@@ -161,10 +186,6 @@ export function DocumentBuilder({
       if (to === from) return
       const merged = fields.some((field) => field.name === to)
       renameField(doc, from, to)
-      if (activeField === from) {
-        highlightField(doc, to)
-        setActiveField(to)
-      }
       sync(doc)
       announce(
         merged
@@ -172,7 +193,7 @@ export function DocumentBuilder({
           : `Renamed {{${from}}} to {{${to}}}`,
       )
     },
-    [activeField, announce, fields, sync],
+    [announce, fields, sync],
   )
 
   const handleRemove = useCallback(
@@ -182,27 +203,61 @@ export function DocumentBuilder({
       const where = field.count === 1 ? '' : ` from all ${field.count} places`
       if (!window.confirm(`Remove {{${field.name}}}${where}?`)) return
       removeField(doc, field.name)
-      if (activeField === field.name) setActiveField(null)
       sync(doc)
       announce(`Removed {{${field.name}}}`)
     },
-    [activeField, announce, sync],
+    [announce, sync],
   )
 
+  // Repeated clicks on the same name cycle through its occurrences.
   const handleFieldClick = useCallback(
-    (name: string) => {
-      const doc = getDoc()
-      if (!doc) return
-      occurrenceRef.current = activeField === name ? occurrenceRef.current + 1 : 0
-      const spans = highlightField(doc, name)
-      setActiveField(name)
-      spans[occurrenceRef.current % spans.length]?.scrollIntoView({
-        block: 'center',
-        behavior: 'smooth',
-      })
+    (field: FieldInfo) => {
+      const index =
+        selection?.name === field.name ? (selection.index + 1) % field.count : 0
+      select({ name: field.name, index }, { preview: true, html: true })
     },
-    [activeField],
+    [select, selection],
   )
+
+  const handleHtmlClick = useCallback(
+    (event: React.MouseEvent<HTMLPreElement>) => {
+      const mark = (event.target as HTMLElement).closest<HTMLElement>('mark[data-field]')
+      if (!mark?.dataset.field) return
+      select(
+        { name: mark.dataset.field, index: Number(mark.dataset.occurrence) },
+        { preview: true, html: false },
+      )
+    },
+    [select],
+  )
+
+  // The generated HTML as text, with each {{Field}} wrapped in a clickable mark.
+  const htmlContent = useMemo(() => {
+    const nodes: ReactNode[] = []
+    let last = 0
+    for (const field of findHtmlFields(html)) {
+      const isActive = selection?.name === field.name
+      const isCurrent = isActive && selection?.index === field.index
+      nodes.push(
+        html.slice(last, field.start),
+        <mark
+          key={field.start}
+          className={
+            'doc-html-field' +
+            (isActive ? ' doc-html-field-active' : '') +
+            (isCurrent ? ' doc-html-field-current' : '')
+          }
+          data-field={field.name}
+          data-occurrence={field.index}
+        >
+          {html.slice(field.start, field.end)}
+        </mark>,
+      )
+      last = field.end
+    }
+    nodes.push(html.slice(last))
+    return nodes
+  }, [html, selection])
 
   const handleCopy = useCallback(async () => {
     try {
@@ -307,14 +362,21 @@ export function DocumentBuilder({
                 <span className="pane-header-meta">{docName || 'no document'}</span>
               </div>
               <div className="pane-body">
-                <textarea
+                <pre
+                  ref={htmlRef}
                   className="doc-html-output"
-                  value={html}
-                  readOnly
-                  spellCheck={false}
+                  tabIndex={0}
                   aria-label="Generated HTML"
-                  placeholder="Upload a .docx file to generate HTML."
-                />
+                  onClick={handleHtmlClick}
+                >
+                  {html ? (
+                    htmlContent
+                  ) : (
+                    <span className="doc-html-placeholder">
+                      Upload a .docx file to generate HTML.
+                    </span>
+                  )}
+                </pre>
               </div>
             </section>
           }
@@ -361,22 +423,28 @@ export function DocumentBuilder({
                 <li
                   key={field.name}
                   className={
-                    field.name === activeField ? 'doc-field doc-field-active' : 'doc-field'
+                    field.name === selection?.name
+                      ? 'doc-field doc-field-active'
+                      : 'doc-field'
                   }
                 >
                   <button
                     type="button"
                     className="doc-field-name"
-                    onClick={() => handleFieldClick(field.name)}
+                    onClick={() => handleFieldClick(field)}
                     title={
                       field.count > 1
-                        ? 'Show in preview (click again for the next occurrence)'
-                        : 'Show in preview'
+                        ? 'Show in preview and HTML (click again for the next occurrence)'
+                        : 'Show in preview and HTML'
                     }
                   >
                     {field.name}
                     {field.count > 1 && (
-                      <span className="doc-field-count"> ×{field.count}</span>
+                      <span className="doc-field-count">
+                        {field.name === selection?.name
+                          ? ` ${selection.index + 1} of ${field.count}`
+                          : ` ×${field.count}`}
+                      </span>
                     )}
                   </button>
                   <button

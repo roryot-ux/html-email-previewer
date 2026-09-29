@@ -464,5 +464,27 @@ body.is-resizing {
   font-size: 13px;
   line-height: 1.45;
   white-space: pre;
+  overflow: auto;
   outline: none;
+}
+
+.doc-html-placeholder {
+  color: var(--text-muted);
+}
+
+.doc-html-field {
+  background: rgba(224, 176, 0, 0.3);
+  color: inherit;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.doc-html-field-active {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+.doc-html-field-current {
+  background: #2563eb;
+  color: #ffffff;
+  outline: 2px solid #93c5fd;
 }

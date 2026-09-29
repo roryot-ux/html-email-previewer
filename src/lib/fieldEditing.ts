@@ -16,11 +16,24 @@ export interface FieldInfo {
   count: number
 }
 
+/** One occurrence of a field: its name and 0-based position in document order. */
+export interface FieldOccurrence {
+  name: string
+  index: number
+}
+
+/** A `{{Name}}` found in the generated HTML text. */
+export interface HtmlField extends FieldOccurrence {
+  start: number
+  end: number
+}
+
 const FIELD_PATTERN = /\{\{([A-Za-z_][A-Za-z0-9_.-]*)\}\}/g
 const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_.-]*$/
 
 const FIELD_ATTR = 'data-builder-field'
 const ACTIVE_ATTR = 'data-builder-active'
+const CURRENT_ATTR = 'data-builder-current'
 const TARGET_ATTR = 'data-builder-target'
 const CARET_ATTR = 'data-builder-caret'
 const STYLE_ATTR = 'data-builder-style'
@@ -30,7 +43,8 @@ const EMPTY_BLOCKS = 'p, li, h1, h2, h3, h4, h5, h6'
 // Preview-only styling; removed again by serializeDocument().
 const BUILDER_CSS = `
 [${FIELD_ATTR}] { background:#fff4c2; outline:1px solid #e0b000; border-radius:2px; cursor:pointer; }
-[${FIELD_ATTR}][${ACTIVE_ATTR}] { background:#ffd84d; outline:2px solid #c27c00; }
+[${FIELD_ATTR}][${ACTIVE_ATTR}] { background:#dbeafe; outline:1px solid #3b82f6; }
+[${FIELD_ATTR}][${CURRENT_ATTR}] { background:#2563eb; color:#ffffff; outline:2px solid #1e3a8a; }
 [${TARGET_ATTR}] { outline:2px dashed #0f6cbd; outline-offset:1px; }
 [${CARET_ATTR}] { display:inline-block; width:2px; height:1.1em; margin:0 1px; vertical-align:text-bottom; background:#0f6cbd; }
 ${EMPTY_BLOCKS.split(', ').map((tag) => `${tag}:empty`).join(', ')} { min-height:1.5em; }
@@ -97,9 +111,40 @@ export function listFields(doc: Document): FieldInfo[] {
   return Array.from(counts, ([name, count]) => ({ name, count }))
 }
 
-/** The field name under a clicked element, if any. */
-export function fieldAt(element: Element): string | null {
-  return element.closest(`[${FIELD_ATTR}]`)?.getAttribute(FIELD_ATTR) ?? null
+function occurrenceOf(doc: Document, span: Element): FieldOccurrence {
+  const name = span.getAttribute(FIELD_ATTR) ?? ''
+  return { name, index: fieldSpans(doc, name).indexOf(span as HTMLElement) }
+}
+
+/** The field occurrence under a clicked element, if any. */
+export function fieldAt(doc: Document, element: Element): FieldOccurrence | null {
+  const span = element.closest(`[${FIELD_ATTR}]`)
+  return span ? occurrenceOf(doc, span) : null
+}
+
+/** The occurrence currently marked as selected, if it still exists. */
+export function currentOccurrence(doc: Document): FieldOccurrence | null {
+  const span = doc.body.querySelector(`[${CURRENT_ATTR}]`)
+  return span ? occurrenceOf(doc, span) : null
+}
+
+/**
+ * Every `{{Name}}` in the generated HTML's body, numbered per name in document
+ * order — the same order as the preview's field highlights, so occurrence N in
+ * one pane is occurrence N in the other.
+ */
+export function findHtmlFields(html: string): HtmlField[] {
+  const bodyStart = Math.max(0, html.search(/<body[\s>]/i))
+  const seen = new Map<string, number>()
+  const found: HtmlField[] = []
+  for (const match of html.slice(bodyStart).matchAll(FIELD_PATTERN)) {
+    const name = match[1]
+    const index = seen.get(name) ?? 0
+    seen.set(name, index + 1)
+    const start = bodyStart + (match.index ?? 0)
+    found.push({ name, index, start, end: start + match[0].length })
+  }
+  return found
 }
 
 export function clearTarget(doc: Document) {
@@ -208,15 +253,24 @@ export function removeField(doc: Document, name: string) {
   for (const span of fieldSpans(doc, name)) span.remove()
 }
 
-/** Highlights every occurrence of one field (or none) and returns them. */
-export function highlightField(doc: Document, name: string | null) {
-  doc
-    .querySelectorAll(`[${ACTIVE_ATTR}]`)
-    .forEach((node) => node.removeAttribute(ACTIVE_ATTR))
-  if (!name) return []
-  const spans = fieldSpans(doc, name)
+/**
+ * Marks every occurrence of the selected field, and the selected occurrence
+ * itself more strongly. Pass null to clear. Returns the selected occurrence.
+ */
+export function highlightField(
+  doc: Document,
+  selection: FieldOccurrence | null,
+): HTMLElement | null {
+  doc.querySelectorAll(`[${ACTIVE_ATTR}], [${CURRENT_ATTR}]`).forEach((node) => {
+    node.removeAttribute(ACTIVE_ATTR)
+    node.removeAttribute(CURRENT_ATTR)
+  })
+  if (!selection) return null
+  const spans = fieldSpans(doc, selection.name)
   spans.forEach((span) => span.setAttribute(ACTIVE_ATTR, ''))
-  return spans
+  const current = spans[selection.index] ?? null
+  current?.setAttribute(CURRENT_ATTR, '')
+  return current
 }
 
 /** The document as clean HTML: fields as `{{Name}}` text, preview aids removed. */
@@ -228,10 +282,13 @@ export function serializeDocument(doc: Document): string {
   root
     .querySelectorAll(`[${FIELD_ATTR}]`)
     .forEach((span) => span.replaceWith(span.textContent ?? ''))
-  root.querySelectorAll(`[${TARGET_ATTR}], [${ACTIVE_ATTR}]`).forEach((node) => {
-    node.removeAttribute(TARGET_ATTR)
-    node.removeAttribute(ACTIVE_ATTR)
-  })
+  root
+    .querySelectorAll(`[${TARGET_ATTR}], [${ACTIVE_ATTR}], [${CURRENT_ATTR}]`)
+    .forEach((node) => {
+      node.removeAttribute(TARGET_ATTR)
+      node.removeAttribute(ACTIVE_ATTR)
+      node.removeAttribute(CURRENT_ATTR)
+    })
   root.normalize()
   return `<!DOCTYPE html>\n${root.outerHTML}\n`
 }
