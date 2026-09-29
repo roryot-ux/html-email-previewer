@@ -11,7 +11,8 @@ check layout without first stripping the placeholders out.
 
 A second tab, **Document Builder**, converts a Word `.docx` file into clean,
 conservative HTML — entirely in the browser — as a starting point for Power
-Automate emails and HTML-to-PDF document generation.
+Automate emails and HTML-to-PDF document generation. You can then click into
+the preview to insert `{{FieldName}}` template fields.
 
 ![Editor on the left, rendered email on the right](docs/screenshot.png)
 
@@ -77,6 +78,41 @@ The editor contents, auto-run state, theme and split position are kept in
 
 To tweak the result, paste it into the Email Editor tab and edit it there.
 
+### Template fields
+
+Fields turn a converted document into a reusable template. They are stored in
+the HTML as plain `{{FieldName}}` text. That keeps them platform-neutral: the
+app does nothing else with them, and whatever fills the template in later only
+needs to find and replace that text.
+
+1. **Choose a location** by clicking in the document preview:
+   - an empty table cell, empty paragraph, empty list item or empty heading
+     (they get a light hover highlight), or
+   - a position inside existing text, e.g. just after `Dear `.
+
+   The spot shows as a dashed outline and/or a blue caret, and the toolbar row
+   says where the field will go.
+2. **Insert Field** asks for a name — letters, numbers, `_`, `.` and `-`, not
+   starting with a number. Typing `ApplicantName` (or `{{ApplicantName}}`)
+   inserts `{{ApplicantName}}`.
+3. The field is highlighted in yellow in the preview, and the generated HTML,
+   **Copy HTML** and **Download HTML** update immediately.
+
+The **Fields** panel on the right lists every field in document order, with a
+count when a field appears more than once:
+
+| Action | What it does |
+| --- | --- |
+| Click a name | Highlights that field and scrolls the preview to it. Click again to jump to the next occurrence. Clicking a field in the preview selects it here too. |
+| **Rename** | Renames every occurrence. Renaming to a name that already exists merges the two. |
+| **Remove** | Deletes every occurrence (after a confirmation), leaving those places empty. |
+
+`{{FieldName}}` text already typed into the Word document is detected as a
+field when the document is converted.
+
+Fields are edited in the live preview, so uploading another document starts
+again from scratch. Download the HTML first if you want to keep your work.
+
 The file is read and converted in the browser by
 [Mammoth](https://github.com/mwilliamson/mammoth.js); it is never uploaded.
 The output is a complete HTML document built to survive Outlook and
@@ -104,6 +140,13 @@ attributes — no `<style>` block, CSS Grid or Flexbox.
 - **Tables** keep merged cells but lose Word's column widths; every table is
   set to full width with a light grid.
 - **`.docx` only.** Older `.doc` files must be re-saved as `.docx` in Word first.
+- **Pre-typed fields must be in one formatting run.** If `{{Name}}` in the Word
+  document is partly bold, or Word has split it internally (common after
+  editing), it is not detected as a field. Remove it and insert it again from
+  the preview.
+- **Fields cannot go between paragraphs.** Put them inside an existing or empty
+  paragraph, list item, heading or table cell. To add a field on its own line,
+  add an empty paragraph in Word first.
 
 ## How Power Automate expressions survive
 
@@ -155,7 +198,7 @@ src/sampleTemplate.ts      Bundled example template
 src/types.ts               Shared types
 src/components/
   CodeEditor.tsx           Monaco wrapper (undo-preserving external updates)
-  DocumentBuilder.tsx      Document Builder tab (.docx upload, output, warnings)
+  DocumentBuilder.tsx      Document Builder tab (.docx upload, output, warnings, fields)
   Preview.tsx              Sandboxed iframe preview
   SplitPane.tsx            Draggable / keyboard-resizable divider
   Toolbar.tsx              Tabs, buttons and toggles
@@ -163,6 +206,7 @@ src/hooks/
   usePersistentState.ts    useState backed by localStorage
 src/lib/
   docxConvert.ts           .docx → conservative HTML (Mammoth + inline styles)
+  fieldEditing.ts          {{Field}} insert / rename / remove / highlight in the preview
   mammoth-browser.d.ts     Types for Mammoth's browser bundle
   fileIo.ts                Load, save and clipboard helpers
 src/monaco/

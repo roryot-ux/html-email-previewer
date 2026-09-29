@@ -21,6 +21,13 @@ renders it under these constraints:
     task.
   - `allow-same-origin` — the frame gets an opaque origin and cannot read the
     app's DOM, `localStorage`, or anything else same-origin.
+- **The Document Builder preview is the one exception to `allow-same-origin`.**
+  It is sandboxed with `allow-same-origin` only — still no `allow-scripts` — so
+  the app can place and highlight template fields in the live document. Nothing
+  in the frame can run script, so the same-origin access only goes one way:
+  from the app into the frame. Its content is not pasted HTML either; it is
+  markup Mammoth generates from a `.docx`, with the document's text escaped.
+  Clicks on links in that preview are cancelled rather than followed.
 - **The template is never evaluated.** It is handed to `srcDoc` as a string.
   There is no `eval`, no `new Function`, no `innerHTML` on the app's own DOM,
   and no templating pass over the content. This is also why Power Automate
@@ -50,8 +57,9 @@ the file system, since `base` is relative.
 
 ## Dependencies
 
-The runtime dependency surface is intentionally small — React, React DOM and
-Monaco Editor, with Vite and TypeScript as build-time tooling. To review it:
+The runtime dependency surface is intentionally small — React, React DOM,
+Monaco Editor and Mammoth (Word conversion, since 1.1.0), with Vite and
+TypeScript as build-time tooling. To review it:
 
 ```bash
 npm audit

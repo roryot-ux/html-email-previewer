@@ -158,7 +158,11 @@ ${body}
 
 export async function convertDocxToHtml(file: File): Promise<DocxConversion> {
   const arrayBuffer = await file.arrayBuffer()
-  const result = await mammoth.convertToHtml({ arrayBuffer }, { styleMap: STYLE_MAP })
+  // Empty paragraphs are kept so they can be clicked to receive a field.
+  const result = await mammoth.convertToHtml(
+    { arrayBuffer },
+    { styleMap: STYLE_MAP, ignoreEmptyParagraphs: false },
+  )
 
   const warnings = Array.from(
     new Set(
