@@ -1,6 +1,13 @@
-import type { ThemeName } from '../types'
+import type { TabName, ThemeName } from '../types'
+
+const TABS: { name: TabName; label: string }[] = [
+  { name: 'editor', label: 'Email Editor' },
+  { name: 'documentBuilder', label: 'Document Builder' },
+]
 
 interface ToolbarProps {
+  activeTab: TabName
+  onTabChange: (tab: TabName) => void
   autoRun: boolean
   theme: ThemeName
   isDirty: boolean
@@ -16,6 +23,8 @@ interface ToolbarProps {
 }
 
 export function Toolbar({
+  activeTab,
+  onTabChange,
   autoRun,
   theme,
   isDirty,
@@ -36,45 +45,64 @@ export function Toolbar({
         <span className="toolbar-subtitle">Power Automate templates, offline</span>
       </div>
 
+      <div className="toolbar-tabs" role="tablist" aria-label="Views">
+        {TABS.map((tab) => (
+          <button
+            key={tab.name}
+            type="button"
+            role="tab"
+            className="tab"
+            aria-selected={activeTab === tab.name}
+            onClick={() => onTabChange(tab.name)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="toolbar-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onRun}
-          title="Render the editor contents (Ctrl+Enter)"
-        >
-          {isDirty ? '▶ Run •' : '▶ Run'}
-        </button>
+        {activeTab === 'editor' && (
+          <>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onRun}
+              title="Render the editor contents (Ctrl+Enter)"
+            >
+              {isDirty ? '▶ Run •' : '▶ Run'}
+            </button>
 
-        <label className="toggle" title="Re-render automatically as you type">
-          <input type="checkbox" checked={autoRun} onChange={onAutoRunToggle} />
-          <span>Auto-run</span>
-        </label>
+            <label className="toggle" title="Re-render automatically as you type">
+              <input type="checkbox" checked={autoRun} onChange={onAutoRunToggle} />
+              <span>Auto-run</span>
+            </label>
 
-        <span className="toolbar-separator" aria-hidden="true" />
+            <span className="toolbar-separator" aria-hidden="true" />
 
-        <button type="button" className="btn" onClick={onLoad}>
-          Load
-        </button>
-        <button type="button" className="btn" onClick={onSave}>
-          Save
-        </button>
-        <button type="button" className="btn" onClick={onCopy}>
-          Copy
-        </button>
-        <button type="button" className="btn" onClick={onClear}>
-          Clear
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={onLoadSample}
-          title="Replace the editor contents with the bundled sample template"
-        >
-          Sample
-        </button>
+            <button type="button" className="btn" onClick={onLoad}>
+              Load
+            </button>
+            <button type="button" className="btn" onClick={onSave}>
+              Save
+            </button>
+            <button type="button" className="btn" onClick={onCopy}>
+              Copy
+            </button>
+            <button type="button" className="btn" onClick={onClear}>
+              Clear
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={onLoadSample}
+              title="Replace the editor contents with the bundled sample template"
+            >
+              Sample
+            </button>
 
-        <span className="toolbar-separator" aria-hidden="true" />
+            <span className="toolbar-separator" aria-hidden="true" />
+          </>
+        )}
 
         <button
           type="button"

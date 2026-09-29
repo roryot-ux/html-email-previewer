@@ -5,6 +5,34 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.1.0 - 2026-09-29
+
+### Added
+
+- **Document Builder** tab: upload a Word `.docx` file and convert it to clean,
+  conservative HTML as a starting point for Power Automate emails and
+  HTML-to-PDF document generation.
+  - Converted in the browser with [Mammoth](https://github.com/mwilliamson/mammoth.js);
+    the document is never uploaded anywhere.
+  - Keeps headings, paragraphs, bold, italic, lists, tables, links and images.
+    Word's *Title* and *Subtitle* styles map to `h1` / `h2`.
+  - Output is a full HTML document: one centred 680 px table wrapper, plain
+    block elements and inline `style` attributes — no `<style>` blocks, CSS Grid
+    or Flexbox.
+  - Rendered preview (same sandboxed iframe as the editor) beside the generated
+    HTML, with **Copy HTML** and **Download HTML** buttons.
+  - Conversion warnings panel listing Mammoth's messages (for example
+    unrecognised Word styles) and embedded base64 images.
+- Tab switcher in the toolbar (**Email Editor** / **Document Builder**). Both
+  tabs stay mounted, so switching keeps the editor's undo history and the last
+  converted document. The active tab is remembered in `localStorage`.
+
+### Changed
+
+- The editor's toolbar buttons and the `Ctrl+S` shortcut apply only while the
+  Email Editor tab is active.
+- New runtime dependency: `mammoth`.
+
 ## 1.0.0 - 2026-09-17
 
 First working version.

@@ -1,6 +1,8 @@
 interface PreviewProps {
   /** Raw editor HTML, passed to the iframe verbatim. */
   html: string
+  /** Hint shown under "Nothing to preview yet." when there is no HTML. */
+  emptyHint?: string
 }
 
 /**
@@ -16,14 +18,15 @@ interface PreviewProps {
  * cannot run script or reach back into the app. Email clients strip JavaScript
  * anyway, which makes a script-free preview the more faithful one.
  */
-export function Preview({ html }: PreviewProps) {
+export function Preview({
+  html,
+  emptyHint = 'Type or load an HTML template on the left, then press Run.',
+}: PreviewProps) {
   if (!html.trim()) {
     return (
       <div className="preview-empty">
         <p>Nothing to preview yet.</p>
-        <p className="preview-empty-hint">
-          Type or load an HTML template on the left, then press Run.
-        </p>
+        <p className="preview-empty-hint">{emptyHint}</p>
       </div>
     )
   }

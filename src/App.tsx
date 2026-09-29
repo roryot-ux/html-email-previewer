@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { CodeEditor } from './components/CodeEditor'
+import { DocumentBuilder } from './components/DocumentBuilder'
 import { Preview } from './components/Preview'
 import { SplitPane } from './components/SplitPane'
 import { Toolbar } from './components/Toolbar'
@@ -11,7 +12,7 @@ import {
   saveHtmlFile,
 } from './lib/fileIo'
 import { SAMPLE_TEMPLATE } from './sampleTemplate'
-import type { ThemeName } from './types'
+import type { TabName, ThemeName } from './types'
 
 const AUTO_RUN_DELAY_MS = 400
 const STATUS_TIMEOUT_MS = 4000
@@ -21,6 +22,8 @@ export default function App() {
   const [autoRun, setAutoRun] = usePersistentState('hep.autoRun', true)
   const [theme, setTheme] = usePersistentState<ThemeName>('hep.theme', 'dark')
   const [splitPercent, setSplitPercent] = usePersistentState('hep.split', 50)
+  const [activeTab, setActiveTab] = usePersistentState<TabName>('hep.tab', 'editor')
+  const [docSplitPercent, setDocSplitPercent] = usePersistentState('hep.docSplit', 50)
 
   // What the preview is currently showing. Kept separate from `source` so the
   // Run button and the auto-run toggle have something to gate on.
@@ -114,7 +117,9 @@ export default function App() {
   }, [announce, setSource])
 
   // Ctrl+S saves instead of letting the browser save the app page itself.
+  // Only on the editor tab, where there is editor content to save.
   useEffect(() => {
+    if (activeTab !== 'editor') return
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
@@ -123,11 +128,13 @@ export default function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleSave])
+  }, [activeTab, handleSave])
 
   return (
     <div className="app">
       <Toolbar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
         autoRun={autoRun}
         theme={theme}
         isDirty={source !== rendered}
@@ -144,39 +151,51 @@ export default function App() {
         onLoadSample={handleLoadSample}
       />
 
-      <SplitPane
-        splitPercent={splitPercent}
-        onSplitChange={setSplitPercent}
-        left={
-          <section className="pane">
-            <div className="pane-header">
-              <span>HTML</span>
-              <span className="pane-header-meta">{fileName}</span>
-            </div>
-            <div className="pane-body">
-              <CodeEditor
-                value={source}
-                theme={theme}
-                onChange={setSource}
-                onRun={run}
-              />
-            </div>
-          </section>
-        }
-        right={
-          <section className="pane">
-            <div className="pane-header">
-              <span>Preview</span>
-              <span className="pane-header-meta">
-                {autoRun ? 'auto-run on' : 'auto-run off'}
-              </span>
-            </div>
-            <div className="pane-body pane-body-preview">
-              <Preview html={rendered} />
-            </div>
-          </section>
-        }
-      />
+      {/* Both tabs stay mounted so switching keeps the Monaco undo history
+          and the last converted document. */}
+      <div className="tab-panel" hidden={activeTab !== 'editor'}>
+        <SplitPane
+          splitPercent={splitPercent}
+          onSplitChange={setSplitPercent}
+          left={
+            <section className="pane">
+              <div className="pane-header">
+                <span>HTML</span>
+                <span className="pane-header-meta">{fileName}</span>
+              </div>
+              <div className="pane-body">
+                <CodeEditor
+                  value={source}
+                  theme={theme}
+                  onChange={setSource}
+                  onRun={run}
+                />
+              </div>
+            </section>
+          }
+          right={
+            <section className="pane">
+              <div className="pane-header">
+                <span>Preview</span>
+                <span className="pane-header-meta">
+                  {autoRun ? 'auto-run on' : 'auto-run off'}
+                </span>
+              </div>
+              <div className="pane-body pane-body-preview">
+                <Preview html={rendered} />
+              </div>
+            </section>
+          }
+        />
+      </div>
+
+      <div className="tab-panel" hidden={activeTab !== 'documentBuilder'}>
+        <DocumentBuilder
+          splitPercent={docSplitPercent}
+          onSplitChange={setDocSplitPercent}
+          announce={announce}
+        />
+      </div>
 
       <input
         ref={fileInputRef}

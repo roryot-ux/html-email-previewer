@@ -9,6 +9,10 @@ Power Automate expressions such as `@{outputs('Get_item')?['body/Title']}` stay
 visible as literal text while the surrounding HTML renders normally, so you can
 check layout without first stripping the placeholders out.
 
+A second tab, **Document Builder**, converts a Word `.docx` file into clean,
+conservative HTML — entirely in the browser — as a starting point for Power
+Automate emails and HTML-to-PDF document generation.
+
 ![Editor on the left, rendered email on the right](docs/screenshot.png)
 
 ## Requirements
@@ -24,9 +28,12 @@ Node 20.19+ or 22.12+ is the practical floor, since that is what Vite 7 supports
 ## Getting started
 
 ```bash
-npm install     # one-off; pulls React, Vite and Monaco into node_modules
+npm install     # pulls React, Vite, Monaco and Mammoth into node_modules
 npm run dev     # http://localhost:5173
 ```
+
+If you already had the project installed before Document Builder was added, run
+`npm install` again to pick up the new `mammoth` dependency.
 
 Other scripts:
 
@@ -37,6 +44,9 @@ npm run typecheck  # types only, no output
 ```
 
 ## Using it
+
+The toolbar has two tabs: **Email Editor** (described here) and
+**Document Builder** (see [below](#document-builder)).
 
 | Control | What it does |
 | --- | --- |
@@ -55,6 +65,45 @@ jump to the extremes.
 
 The editor contents, auto-run state, theme and split position are kept in
 `localStorage`, so a reload brings you back where you left off.
+
+## Document Builder
+
+1. Click the **Document Builder** tab in the toolbar.
+2. Click **Upload .docx** and pick a Word document.
+3. The generated HTML appears on the left and the rendered document on the
+   right. Any conversion warnings are listed above them.
+4. Use **Copy HTML** to paste the markup into a Power Automate action, or
+   **Download HTML** to save it as an `.html` file.
+
+To tweak the result, paste it into the Email Editor tab and edit it there.
+
+The file is read and converted in the browser by
+[Mammoth](https://github.com/mwilliamson/mammoth.js); it is never uploaded.
+The output is a complete HTML document built to survive Outlook and
+Power Automate's HTML-to-PDF conversion: a single centred table wrapper
+(680 px), plain headings, paragraphs, lists and tables, and inline `style`
+attributes — no `<style>` block, CSS Grid or Flexbox.
+
+### Conversion limitations
+
+- **Structure, not appearance.** Headings, paragraphs, bold, italic, lists,
+  tables and links are kept. Fonts, colours, font sizes, alignment, spacing,
+  page margins, and cell shading or borders from Word are not — the output uses
+  its own neutral styling.
+- **Headings depend on Word styles.** Only paragraphs using Word's built-in
+  *Heading 1–6*, *Title* and *Subtitle* styles become headings. Text that is
+  merely made large and bold stays a paragraph. Custom styles are listed in the
+  warnings panel and converted as plain paragraphs.
+- **Not converted:** headers and footers, text boxes, shapes, SmartArt, charts,
+  columns, page breaks, tracked changes and comments. Footnotes and endnotes
+  appear as a list at the end.
+- **Images** are embedded as base64 data URIs. They work in HTML-to-PDF, but
+  many email clients, including Outlook, block them — host the images and
+  replace the `src` before using the HTML in an email. The warnings panel flags
+  this when images are present.
+- **Tables** keep merged cells but lose Word's column widths; every table is
+  set to full width with a light grid.
+- **`.docx` only.** Older `.doc` files must be re-saved as `.docx` in Word first.
 
 ## How Power Automate expressions survive
 
@@ -81,6 +130,8 @@ attribute values. Nothing in the app treats `@{`, `{` or `}` as special.
 
 ## Offline by construction
 
+- Word documents are converted in the browser; Mammoth is bundled like
+  everything else.
 - No CDN: Monaco is imported from `node_modules`, bundled by Vite, and its web
   workers are produced as local assets. The codicon font is emitted into
   `dist/assets` too.
@@ -104,12 +155,15 @@ src/sampleTemplate.ts      Bundled example template
 src/types.ts               Shared types
 src/components/
   CodeEditor.tsx           Monaco wrapper (undo-preserving external updates)
+  DocumentBuilder.tsx      Document Builder tab (.docx upload, output, warnings)
   Preview.tsx              Sandboxed iframe preview
   SplitPane.tsx            Draggable / keyboard-resizable divider
-  Toolbar.tsx              Buttons and toggles
+  Toolbar.tsx              Tabs, buttons and toggles
 src/hooks/
   usePersistentState.ts    useState backed by localStorage
 src/lib/
+  docxConvert.ts           .docx → conservative HTML (Mammoth + inline styles)
+  mammoth-browser.d.ts     Types for Mammoth's browser bundle
   fileIo.ts                Load, save and clipboard helpers
 src/monaco/
   setup.ts                 Local Monaco + worker registration
