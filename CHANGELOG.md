@@ -5,6 +5,29 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- GitHub Pages deployment. A GitHub Actions workflow
+  (`.github/workflows/deploy.yml`) builds the app and publishes `dist/` on
+  every push to `main`, and can also be run manually from the Actions tab. The
+  app is available at <https://roryot-ux.github.io/html-email-previewer/>.
+
+### Changed
+
+- The GitHub Pages build (`npm run build -- --mode github-pages`, run by the
+  deploy workflow) uses the base path `/html-email-previewer/`. Normal
+  `npm run build` output now uses the root base path `/` instead of the
+  relative `./`, and `npm run dev` and `npm run preview` serve the app at the
+  root URL.
+
+### Fixed
+
+- `npm run preview` no longer shows a blank page. Previously every production
+  build used the `/html-email-previewer/` base path, so the preview server
+  returned 404s for the JavaScript and CSS it requested.
+
 ## 1.3.0 - 2026-09-29
 
 ### Added

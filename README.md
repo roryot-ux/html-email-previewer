@@ -14,6 +14,8 @@ conservative HTML — entirely in the browser — as a starting point for Power
 Automate emails and HTML-to-PDF document generation. You can then click into
 the preview to insert `{{FieldName}}` template fields.
 
+**Live app:** <https://roryot-ux.github.io/html-email-previewer/>
+
 ![Editor on the left, rendered email on the right](docs/screenshot.png)
 
 ## Requirements
@@ -26,7 +28,7 @@ the preview to insert `{{FieldName}}` template fields.
 
 Node 20.19+ or 22.12+ is the practical floor, since that is what Vite 7 supports.
 
-## Getting started
+## Local development
 
 ```bash
 npm install     # pulls React, Vite, Monaco and Mammoth into node_modules
@@ -36,13 +38,42 @@ npm run dev     # http://localhost:5173
 If you already had the project installed before Document Builder was added, run
 `npm install` again to pick up the new `mammoth` dependency.
 
-Other scripts:
+## Production build and preview
 
 ```bash
 npm run build      # type-check, then emit a production bundle to dist/
-npm run preview    # serve the built bundle locally
+npm run preview    # serve the built bundle at http://localhost:4173/
 npm run typecheck  # types only, no output
 ```
+
+Local builds use the root base path `/`, so both `npm run dev` and
+`npm run preview` serve the app at the root URL.
+
+To reproduce the GitHub Pages build locally, which uses the base path
+`/html-email-previewer/` (see `vite.config.ts`):
+
+```bash
+npm run build -- --mode github-pages
+```
+
+That bundle only works when served from the `/html-email-previewer/` sub-path,
+so `npm run preview` will show a blank page for it; run a normal
+`npm run build` again before previewing.
+
+## Deployment (GitHub Pages)
+
+The app is published at <https://roryot-ux.github.io/html-email-previewer/>
+by the GitHub Actions workflow in `.github/workflows/deploy.yml`, using the
+official GitHub Pages actions (`actions/upload-pages-artifact` and
+`actions/deploy-pages`). There is no deploy script and no `gh-pages` branch.
+
+- Every push to `main` runs `npm ci` and
+  `npm run build -- --mode github-pages`, then publishes `dist/` to GitHub
+  Pages.
+- To deploy manually, open the repository's **Actions** tab, select
+  **Deploy to GitHub Pages** and click **Run workflow**.
+- One-time setup: in the repository's **Settings → Pages**, set
+  **Build and deployment → Source** to **GitHub Actions**.
 
 ## Using it
 
